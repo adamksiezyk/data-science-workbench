@@ -1,0 +1,9 @@
+routes:
+  - name: llamacpp
+    route_type: llm/v1/chat
+    model:
+      provider: openai
+      name: mistral7b
+      config:
+        openai_api_key: ""
+        openai_api_base: http://llm:8080

@@ -1,0 +1,60 @@
+services:
+  mlflow-deployments:
+    image: mlflow
+    build: ./mlflow
+    command: "mlflow deployments start-server --config-path config.yaml --host 0.0.0.0 --port 5000 --workers 1"
+    expose:
+      - 5000
+    volumes:
+      - ./mlflow/config.yaml:/app/config.yaml:ro
+
+  mlflow-server:
+    image: mlflow
+    build: ./mlflow
+    command: 'mlflow server --host 0.0.0.0 --port ${MLFLOW_SERVER_PORT} --backend-store-uri sqlite:////app/db.sqlite --gunicorn-opts "--timeout=120"'
+    environment:
+      - MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
+    ports:
+      - ${MLFLOW_SERVER_PORT}:${MLFLOW_SERVER_PORT}
+    volumes:
+      - ./data/mlflow:/app
+
+  llm:
+    image: llamacpp
+    build: ./llamacpp
+    command: "--host 0.0.0.0 --port ${LLM_PORT} -m /opt/llms/${LLM_NAME} -ngl ${LLM_GPU_LAYERS} -c ${LLM_CONTEXT_SIZE}"
+    ports:
+      - ${LLM_PORT}:${LLM_PORT}
+    volumes:
+      - ./data/llms:/opt/llms
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
+
+  jupyter:
+    image: quay.io/jupyter/pytorch-notebook:cuda11-pytorch-2.2.1
+    user: root
+    ports:
+      - ${JUPYTER_PORT}:8888
+    environment:
+      - MLFLOW_TRACKING_URI=http://mlflow-server:${MLFLOW_SERVER_PORT}
+      - OPENAI_API_BASE=http://llm:${LLM_PORT}
+      - JUPYTER_ENABLE_LAB=yes
+      - NB_USER=${JUPYTER_USER}
+      - NB_UID=${JUPYTER_UID}
+      - NB_GID=${JUPYTER_GID}
+      - CHOWN_HOME=yes
+      - CHOWN_HOME_OPTS=-R
+    volumes:
+      - ./data/jupyter:/home/${JUPYTER_USER}/work
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [ gpu ]
