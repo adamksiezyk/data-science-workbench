@@ -42,6 +42,7 @@ services:
       - ${JUPYTER_PORT}:8888
     environment:
       - MLFLOW_TRACKING_URI=http://mlflow-server:${MLFLOW_SERVER_PORT}
+      - MLFLOW_DEPLOYMENTS_TARGET=http://mlflow-deployments:5000
       - OPENAI_API_BASE=http://llm:${LLM_PORT}
       - JUPYTER_ENABLE_LAB=yes
       - NB_USER=${JUPYTER_USER}
